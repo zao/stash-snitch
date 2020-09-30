@@ -2,7 +2,7 @@ mod api;
 mod ratelimiter;
 mod storage;
 
-use chrono::{TimeZone, Utc};
+use chrono::{DateTime, Local, TimeZone, Utc};
 use std::path::PathBuf;
 use structopt::StructOpt;
 
@@ -20,9 +20,9 @@ fn parse_duration(s: &str) -> Result<chrono::Duration, Box<dyn std::error::Error
 struct Opt {
     /// POESESSID from browser for authentication to API
     #[structopt(short, long)]
-    sessid: String,
+    sessid: Option<String>,
 
-    /// Guild ID, can be found in guild URL on website, like https://www.pathofexile.com/guild/profile/12345
+    /// Guild ID, last number in guild URL from website, like https://www.pathofexile.com/guild/profile/12345
     #[structopt(short, long)]
     guildid: i64,
 
@@ -54,14 +54,16 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 
     let mut storage = storage::Storage::new(project_dirs.data_dir().join("guild-stash.db"))
         .ok_or("Could not create/open database")?;
-    let mut stash_api = api::GuildStashAPI::new(opt.guildid, &opt.sessid);
-
-    let mut results = api::StashEntries { entries: vec![] };
 
     // First refresh the data from the server, prepending new items to the dataset.
     // Then export to the desired file type.
 
     if !opt.skip_refresh {
+        if opt.sessid.is_none() {
+            eprintln!("Session ID must be given unless refresh is skipped");
+            Err("Session ID must be given unless refresh is skipped")?;
+        }
+        let mut stash_api = api::GuildStashAPI::new(opt.guildid, opt.sessid.as_ref().unwrap());
         let mut added_count = 0;
         let mut last_item_key: Option<(String, u64)> = None;
 
@@ -90,9 +92,42 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     let start_time = opt.age_limit.map(|age| now - age);
     let entries = storage.fetch(opt.guildid, start_time, opt.count_limit)?;
 
-    let writer = std::fs::File::create(opt.output)?;
-    serde_json::to_writer(writer, &entries)?;
-    eprintln!("{} entries exported.", entries.entries.len());
+    match opt.output.extension().and_then(std::ffi::OsStr::to_str) {
+        Some("json") => {
+            let writer = std::fs::File::create(opt.output)?;
+            serde_json::to_writer(writer, &entries)?;
+            eprintln!("{} entries exported.", entries.entries.len());
+        }
+        Some("csv") => {
+            let mut writer = csv::Writer::from_path(opt.output)?;
+            writer.write_record(&[
+                "id",
+                "time",
+                "league",
+                "item",
+                "action",
+                "account_name",
+                "account_realm",
+            ])?;
+            for e in &entries.entries {
+                let t = Utc.timestamp(e.time as i64, 0);
+                let localtime: DateTime<Local> = t.into();
+                writer.write_record(&[
+                    &e.id,
+                    &localtime.to_rfc3339(),
+                    &e.league,
+                    &e.item,
+                    &e.action,
+                    &e.account.name,
+                    &e.account.realm,
+                ])?;
+            }
+            eprintln!("{} entries exported.", entries.entries.len());
+        }
+        _ => {
+            eprintln!("Unknown output extension for output {:?}", opt.output);
+        }
+    }
 
     Ok(())
 }

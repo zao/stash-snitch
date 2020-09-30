@@ -1,13 +1,11 @@
 use super::api;
 use api::{StashAccount, StashEntries, StashEntry};
 
-use rusqlite::{named_params, params, Connection, NO_PARAMS, ToSql};
-use std::rc::Rc;
+use rusqlite::{named_params, params, Connection};
 use std::path::Path;
 
 pub struct Storage {
     conn: Connection,
-    in_hole: Option<String>,
 }
 
 impl Storage {
@@ -40,7 +38,6 @@ impl Storage {
 
         Some(Self {
             conn,
-            in_hole: None,
         })
     }
 
