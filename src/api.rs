@@ -13,6 +13,7 @@ pub struct StashEntry {
     pub id: String,
     pub time: u64,
     pub league: String,
+    pub stash: Option<String>,
     pub item: String,
     pub action: String,
     pub account: StashAccount,

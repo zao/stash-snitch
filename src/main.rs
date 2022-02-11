@@ -52,8 +52,8 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         .ok_or("Could not find user profile")?;
     std::fs::create_dir_all(project_dirs.data_dir())?;
 
-    let mut storage = storage::Storage::new(project_dirs.data_dir().join("guild-stash.db"))
-        .ok_or("Could not create/open database")?;
+    let mut storage = storage::Storage::new(project_dirs.data_dir().join("guild-stash.db"))?;
+    // .unwrap_or("Could not create/open database")?;
 
     // First refresh the data from the server, prepending new items to the dataset.
     // Then export to the desired file type.
@@ -108,6 +108,7 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                 "action",
                 "account_name",
                 "account_realm",
+                "stash",
             ])?;
             for e in &entries.entries {
                 let t = Utc.timestamp(e.time as i64, 0);
@@ -120,6 +121,7 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                     &e.action,
                     &e.account.name,
                     &e.account.realm,
+                    &e.stash.clone().unwrap_or_else(|| "".to_string()),
                 ])?;
             }
             eprintln!("{} entries exported.", entries.entries.len());
