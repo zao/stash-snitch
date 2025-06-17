@@ -60,7 +60,7 @@ impl Storage {
         let mut stmt = self.conn.prepare(&sql)?;
 
         let mut entries = vec![];
-        for entry in stmt.query_map_named(
+        for entry in stmt.query_map(
             named_params! {
                 ":guild": guildid,
             },
@@ -89,7 +89,7 @@ impl Storage {
                 }
             }
             if let Some(age) = &age_limit {
-                if (e.time as i64) < age.timestamp() {
+                if (e.time as i64) < age.and_utc().timestamp() {
                     break;
                 }
             }
@@ -108,7 +108,7 @@ impl InsertTransaction<'_> {
     pub fn insert(&mut self, guildid: i64, entries: &[StashEntry]) -> rusqlite::Result<usize> {
         let mut added = 0;
         for entry in entries {
-            added += self.txn.execute_named(
+            added += self.txn.execute(
                 r#"INSERT OR IGNORE INTO entry
                 (id,time,league,item,action,account_name,guild,stash,x,y)
                 VALUES

@@ -113,7 +113,7 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                 "y",
             ])?;
             for e in &entries.entries {
-                let t = Utc.timestamp(e.time as i64, 0);
+                let t = Utc.timestamp_opt(e.time as i64, 0).unwrap();
                 let localtime: DateTime<Local> = t.into();
                 writer.write_record(&[
                     &e.id,
