@@ -20,9 +20,10 @@ impl Storage {
             item TEXT NOT NULL,
             action TEXT NOT NULL,
             account_name TEXT NOT NULL,
-            account_realm TEXT NOT NULL,
             guild INTEGER NOT NULL,
-            stash TEXT
+            stash TEXT,
+            x INTEGER,
+            y INTEGER
         )"#,
             params![],
         )?;
@@ -36,6 +37,9 @@ impl Storage {
         )?;
 
         let _ = conn.execute(r#"ALTER TABLE entry ADD COLUMN stash TEXT"#, params![]);
+        let _ = conn.execute(r#"ALTER TABLE entry ADD COLUMN x INTEGER"#, params![]);
+        let _ = conn.execute(r#"ALTER TABLE entry ADD COLUMN y INTEGER"#, params![]);
+        let _ = conn.execute(r#"ALTER TABLE entry DROP COLUMN realm"#, params![]);
 
         Ok(Self { conn })
     }
@@ -51,7 +55,7 @@ impl Storage {
         age_limit: Option<chrono::NaiveDateTime>,
         count_limit: Option<i64>,
     ) -> rusqlite::Result<StashEntries> {
-        let sql = r#"SELECT id,time,league,item,action,account_name,account_realm,stash FROM entry
+        let sql = r#"SELECT id,time,league,item,action,account_name,stash,x,y FROM entry
         WHERE guild = :guild ORDER BY CAST(id AS INTEGER) DESC"#;
         let mut stmt = self.conn.prepare(&sql)?;
 
@@ -70,9 +74,11 @@ impl Storage {
                     action: row.get(4)?,
                     account: StashAccount {
                         name: row.get(5)?,
-                        realm: row.get(6)?,
+                        realm: None,
                     },
-                    stash: row.get(7)?,
+                    stash: row.get(6)?,
+                    x: row.get(7)?,
+                    y: row.get(8)?,
                 })
             },
         )? {
@@ -104,9 +110,9 @@ impl InsertTransaction<'_> {
         for entry in entries {
             added += self.txn.execute_named(
                 r#"INSERT OR IGNORE INTO entry
-                (id,time,league,item,action,account_name,account_realm,guild,stash)
+                (id,time,league,item,action,account_name,guild,stash,x,y)
                 VALUES
-                (:id,:time,:league,:item,:action,:account_name,:account_realm,:guild,:stash)"#,
+                (:id,:time,:league,:item,:action,:account_name,:guild,:stash,:x,:y)"#,
                 named_params! {
                     ":id": &entry.id,
                     ":time": entry.time as i64,
@@ -114,9 +120,10 @@ impl InsertTransaction<'_> {
                     ":item": &entry.item,
                     ":action": &entry.action,
                     ":account_name": &entry.account.name,
-                    ":account_realm": &entry.account.realm,
                     ":guild": guildid,
                     ":stash": &entry.stash,
+                    ":x": &entry.x,
+                    ":y": &entry.y,
                 },
             )?;
         }
