@@ -17,12 +17,14 @@ pub struct StashEntry {
     pub item: String,
     pub action: String,
     pub account: StashAccount,
+    pub x: Option<i32>,
+    pub y: Option<i32>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct StashAccount {
     pub name: String,
-    pub realm: String,
+    pub realm: Option<String>,
 }
 
 pub struct GuildStashAPI {

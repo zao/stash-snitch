@@ -109,9 +109,11 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                 "account_name",
                 "account_realm",
                 "stash",
+                "x",
+                "y",
             ])?;
             for e in &entries.entries {
-                let t = Utc.timestamp(e.time as i64, 0);
+                let t = Utc.timestamp_opt(e.time as i64, 0).unwrap();
                 let localtime: DateTime<Local> = t.into();
                 writer.write_record(&[
                     &e.id,
@@ -120,8 +122,11 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                     &e.item,
                     &e.action,
                     &e.account.name,
-                    &e.account.realm,
+                    "",
                     &e.stash.clone().unwrap_or_else(|| "".to_string()),
+                    // API positions are 0-based, website positions are 1-based
+                    &e.x.map(|v| (v + 1).to_string()).unwrap_or_else(|| "".to_string()),
+                    &e.y.map(|v| (v + 1).to_string()).unwrap_or_else(|| "".to_string()),
                 ])?;
             }
             eprintln!("{} entries exported.", entries.entries.len());
